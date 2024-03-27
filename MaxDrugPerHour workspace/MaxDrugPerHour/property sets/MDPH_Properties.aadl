@@ -1,0 +1,15 @@
+--MDPH_Properties.aadl
+
+--  properties used by the MaxDrugPerHour tutorial project
+
+property set MDPH_Properties is
+
+  Service_Thread_Period: constant --Timing_Properties::
+	Time => 1 sec;
+
+  Samples_Per_Hour: constant aadlinteger => 3600;
+
+  -- "near" when at least 95% of max drug per hour limit
+  Near_Max_Drug_Per_Hour_Factor: constant aadlreal => 0.95;
+	
+end MDPH_Properties;
