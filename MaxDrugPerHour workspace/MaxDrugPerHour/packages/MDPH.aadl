@@ -35,7 +35,7 @@ annex Typedef
   {**
   type time is quantity s
   type flow_rate is quantity mlph  --milliters per hour
-  type flow_rate_samples is array[MDPH_Properties::Samples_Per_Hour] of flow_rate
+  type flow_rate_samples is array[ MDPH_Properties::Samples_Per_Hour] of flow_rate
   **};
 
 
@@ -78,18 +78,46 @@ end Max_Drug_Per_Hour_Watcher;
 thread implementation Max_Drug_Per_Hour_Watcher.i
   annex BLESS --state machine
   {**
+  assert 
+  <<QML:x~quantity whole returns quantity mlph := INFUSION_RATE^(x) >>
   -- this body of the BLESS annex subclause is just a suggestion to get you started
-  -- look at the PO-SA project in github.com/brlarson/BLESS-models
+  -- look at the SPA.aadl in PO-SA project in github.com/brlarson/BLESS-models
   invariant <<INV: : F() and TD() >>
   variables	
+    lb ~ quantity whole := 0
+    ub ~ quantity whole := 0
     num_samples~quantity whole := 0  --counts samples while filling
     frs ~ flow_rate_samples  --holds measurmenets of infusion flow rate
-      <<F : : all s~quantity whole in 1 .. num_samples are frs[s] = INFUSION_RATE^(-s) >>
+    <<F: : all k~quantity whole in lb .. (ub - 1) 
+    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))>>;
+           
     total_drug ~ quantity ml  --running total of drug infused in pervious hour
-      <<TD: : total_drug = TOTAL_DRUG_IN_LAST_HOUR() >>
+      <<TD: : total_drug = TOTAL_DRUG_IN_LAST_HOUR() >> -- total drug in the most recent hour
+ 
   states
-    start : initial state;
+    start : initial state
+    fillingWindow : complete state
+    chooseToRun: state
+    run: complete state
+    halt: final state
+    fail: final state 
+    
+   transitions
+    go: start -[total_drug <  MAX_DRUG_PER_HOUR ]-> keep_infusion
+    
+    mdph_reached: start -[total_drug >= MAX_DRUG_PER_HOUR]-> stop_infusion -- how to calculate drug infused till now (this second)
+    
+    nmdph_reached: start -[]-> stop_infusion -- what to do in case of nmdph
+    
+    inf_check: keep_infusion -[]-> check_infusion
+    
+    infusion_in_limits: check_infusion -[]-> keep_infusion
+    
+    infusion_not_in_limits: check_infusion -[]-> stop_infusion
+    
+   
   **};  --end of BLESS state machine
+  
 end Max_Drug_Per_Hour_Watcher.i;
 
 
