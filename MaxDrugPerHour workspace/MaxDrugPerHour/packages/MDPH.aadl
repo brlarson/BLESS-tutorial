@@ -103,18 +103,20 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     fail: final state 
     
    transitions
-    go: start -[total_drug <  MAX_DRUG_PER_HOUR ]-> keep_infusion
+    mdph0: start -[(ub-lb) < num_samples]-> fillingWindow
     
-    mdph_reached: start -[total_drug >= MAX_DRUG_PER_HOUR]-> stop_infusion -- how to calculate drug infused till now (this second)
+    mdph0a: start -[(ub-lb) > num_samples]-> fail
     
-    nmdph_reached: start -[]-> stop_infusion -- what to do in case of nmdph
+    mdph1:fillingWindow -[on dispatch]-> chooseToRun
     
-    inf_check: keep_infusion -[]-> check_infusion
+    mdph2: chooseToRun -[(ub-lb) < num_samples]-> fillingWindow
     
-    infusion_in_limits: check_infusion -[]-> keep_infusion
+    mdph3: chooseToRun-[(ub-lb) = num_samples]-> run
     
-    infusion_not_in_limits: check_infusion -[]-> stop_infusion
-    
+    mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail
+     
+    mdph4: run-[on dispatch]-> run   
+
    
   **};  --end of BLESS state machine
   
