@@ -44,6 +44,7 @@ annex Assertion
   ghost variables
     def INFUSION_RATE~quantity mlph     --actual rate of drug infusion into patient, must be within tolerance of commanded and measured rates
     def MAX_DRUG_PER_HOUR~quantity ml   --allow maximum drug in the previous hour from physician's prescription'		
+  	def NUM_SAMPLES~quantity whole 
   
   --the total drug in previous hour is at (or above) its limit
   <<PATIENT_AT_MAX_DRUG_PER_HOUR: : TOTAL_DRUG_IN_LAST_HOUR() >= MAX_DRUG_PER_HOUR >>  
@@ -55,7 +56,8 @@ annex Assertion
   -- note this assumes that the Period of the thread is 1 s, so there are 3600 samples in an hour
   -- also that INFUSION_RATE has units of mlph; without the magic of BLESS units you would need to convert it to ml/s in your code
   <<TOTAL_DRUG_IN_LAST_HOUR: returns quantity ml :=  
-    (sum i~quantity whole in 1 .. MDPH_Properties::Samples_Per_Hour of INFUSION_RATE^(-i) * 1.0 s) >>  
+    (sum i~quantity whole in 1 .. NUM_SAMPLES of INFUSION_RATE^(-i) * 1.0 s) >>  
+   
   	
   **};
   
@@ -87,6 +89,7 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     lb ~ quantity whole := 0
     ub ~ quantity whole := 0
     num_samples~quantity whole := 0  --counts samples while filling
+     <<AXIOM_NS: :num_samples = NUM_SAMPLES>>;
     frs ~ flow_rate_samples  --holds measurmenets of infusion flow rate
     <<F: : all k~quantity whole in lb .. (ub - 1) 
     	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))>>;
@@ -96,16 +99,16 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
  
   states
     start : initial state
-    	<< (num_samples=0) and (ub=0) and (lb=0) and (total_drug=0.0 ml) >>
+    	<< num_samples=0 and ub=0 and lb=0 and total_drug=0.0 ml and AXIOM_NS() >>
     
     fillingWindow : complete state
-    	<<FW: :((ub-lb) < num_samples) and INV() >>;
+    	<<FW: :((ub-lb) < MDPH_Properties::Samples_Per_Hour) and INV() >>;
     	
-    chooseToRun: state
-    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
-    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
-    	  
-    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
+--    chooseToRun: state
+--    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
+--    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
+--    	  
+--    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
    
    	run: complete state
    		<<RUN_AV: :INV()  and ((ub-lb)=num_samples)>>;
@@ -115,19 +118,22 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     fail: final state  --failure termination 
     
    transitions
-    mdph0: start -[ ]-> fillingWindow
+    mdph0: start -[ (ub-lb) <  MDPH_Properties::Samples_Per_Hour ]-> fillingWindow
+     {|ub',lb',num_samples', frs', total_drug':= ub,lb,num_samples, frs, total_drug|};  --copy current values to next period
     
-   -- mdph0a: start -[(ub-lb) > num_samples]-> fail
+    mdph0a: start -[(ub-lb) >=  MDPH_Properties::Samples_Per_Hour]-> fail
     
-    mdph1:fillingWindow -[on dispatch]-> chooseToRun
+    --mdph1:fillingWindow -[on dispatch]-> chooseToRun
+    	 
     
-    mdph2: chooseToRun -[(ub-lb) < num_samples]-> fillingWindow
     
-    mdph3: chooseToRun-[(ub-lb) = num_samples]-> run
+   -- mdph2: chooseToRun -[(ub-lb) < num_samples]-> fillingWindow
     
-    mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail -- should never happen
+   -- mdph3: chooseToRun-[(ub-lb) = num_samples]-> run
+    
+   --  mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail -- should never happen
      
-    mdph4: run-[on dispatch]-> run   
+   -- mdph4: run-[on dispatch]-> run   
 
    
   **};  --end of BLESS state machine

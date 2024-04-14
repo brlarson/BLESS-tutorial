@@ -1,0 +1,42 @@
+#This file, script.txt, was produced the BLESS Proof Assistant v3.2.4
+#  at Sun Apr 14 18:36:56 AST 2024 by ehsanahmad
+make-an
+#MDPH::Max_Drug_Per_Hour_Watcher.i
+#[serial 1003] <<M(fillingWindow)>> -> <<I>> from invariant I when complete state fillingWindow has Assertion <<M(fillingWindow)>> in its definition. 
+substitute-pre
+normalize
+tautologies
+#[serial 1004] <<M(run)>> -> <<I>> from invariant I when complete state run has Assertion <<M(run)>> in its definition.
+substitute-pre
+laws
+tautologies
+#[serial 1005] Serban's Theorem:  disjunction of execute conditions leaving execution state start, <<M(start)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<=
+normalize
+laws
+tautologies
+#[serial 1006]  <<M(start) and x>> A <<M(fillingWindow)>> for mdph0: start-[x]->fillingWindow{A};
+completesub
+alldist^
+atomic
+split-post
+tautologies
+normalize
+split-post
+guided-sub-equals[NUM_SAMPLES]
+guided-sub-equals[num_samples]
+laws
+quant
+normalize
+remove-units
+tautologies
+guided-sub-equals[lb]
+guided-sub-equals[ub]
+normalize
+laws
+quant
+tautologies
+#[serial 1007]  <<M(start) and x>> -> <<M(fail)>> for mdph0a: start-[x]->fail{};
+tautologies
+#Q.E.D.
