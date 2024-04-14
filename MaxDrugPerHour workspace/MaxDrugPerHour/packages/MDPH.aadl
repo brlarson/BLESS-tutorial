@@ -96,16 +96,28 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
  
   states
     start : initial state
+    	<< (num_samples=0) and (ub=0) and (lb=0) and (total_drug=0.0 ml) >>
+    
     fillingWindow : complete state
+    	<<FW: :((ub-lb) < num_samples) and INV() >>;
+    	
     chooseToRun: state
-    run: complete state
-    halt: final state
-    fail: final state 
+    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
+    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
+    	  
+    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
+   
+   	run: complete state
+   		<<RUN_AV: :INV()  and ((ub-lb)=num_samples)>>;
+   	
+    halt: final state  -- normal termination
+     
+    fail: final state  --failure termination 
     
    transitions
-    mdph0: start -[(ub-lb) < num_samples]-> fillingWindow
+    mdph0: start -[ ]-> fillingWindow
     
-    mdph0a: start -[(ub-lb) > num_samples]-> fail
+   -- mdph0a: start -[(ub-lb) > num_samples]-> fail
     
     mdph1:fillingWindow -[on dispatch]-> chooseToRun
     
@@ -113,7 +125,7 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     
     mdph3: chooseToRun-[(ub-lb) = num_samples]-> run
     
-    mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail
+    mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail -- should never happen
      
     mdph4: run-[on dispatch]-> run   
 
