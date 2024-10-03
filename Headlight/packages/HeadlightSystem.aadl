@@ -1,0 +1,158 @@
+package HeadlightSystem
+public
+with BLESS_Types, BLESS;
+
+system hls --headlight system
+end hls;
+
+system implementation hls.i
+subcomponents
+  hl : device Headlight;
+  ls : device LightSensor;
+  cp  : process ControllerProcess.i;
+connections
+  ill : port cp.illuminate -> hl.illuminate;
+  int : port ls.light_intensity -> cp.light_intensity;
+end hls.i;
+
+device Headlight
+features
+  illuminate : in data port BLESS_Types::Boolean
+    {BLESS::Assertion => "<< HIO() >>";};  --headlight is on
+end Headlight;
+
+device LightSensor
+features
+  light_intensity : out data port Percent
+   {BLESS::Value => "<< returns quantity p := LI >>";};  --light intensity
+end LightSensor;
+
+data Percent
+properties
+  BLESS::Typed => "quantity p";
+end Percent;
+
+process ControllerProcess
+features
+  light_intensity : in data port Percent
+   {BLESS::Value => "<< returns quantity p := LI >>";};  --light intensity
+  illuminate : out data port BLESS_Types::Boolean
+    {BLESS::Assertion => "<< HIO() >>";};  --headlight is on
+end ControllerProcess;
+
+process implementation ControllerProcess.i
+subcomponents
+  c : thread Controller.i;
+connections
+  int : port light_intensity -> c.light_intensity;
+  ill : port c.illuminate -> illuminate;
+end ControllerProcess.i;
+
+thread Controller
+features
+  light_intensity : in data port Percent
+   {BLESS::Value => "<< returns quantity p := LI >>";};  --light intensity
+  illuminate : out data port BLESS_Types::Boolean
+    {BLESS::Assertion => "<< HIO() >>";};  --headlight is on
+properties
+  Dispatch_Protocol => Timed;
+  Period => 100 ms;
+end Controller;
+
+thread implementation Controller.i
+annex BLESS
+{**
+invariant <<INV: : LTL() and LTD() and FL() and FD() >>
+  
+variables
+  ltcl ~ time := 0.0 s  --last time confirmed light
+    << AXIOM_LTCL: : ltcl = LTCL >>
+     
+  ltcd ~ time := 0.0 s  --last time confirmed dark
+    << AXIOM_LTCD: : ltcd = LTCD >>
+    
+  ftl ~ time := 0.0 s  --first time (continuous) light
+    <<FL: : ftl = 0.0 s or ConfirmedLight(ftl) >>
+  
+  ftd ~ time := 0.0 s  --first time (continuous) dark
+    <<FD: : ftd = 0.0 s or ConfirmedDark(ftd) >>
+  
+states
+  start : initial state
+     << ltcl = 0.0 s and ltcd = 0.0 s and ftl = 0.0 s and ftd = 0.0 s >>     
+  light_off : complete state 
+     << INV() >> 
+  doff : state  --decide when off
+     << INV() >>
+  light_on : complete state
+     << INV() >> 
+  don : state  --decide when on
+     << INV() >>
+  done : final state
+  
+transitions
+  go : start -[ ]-> light_off 
+    { << ltcl = 0.0 s and ltcd = 0.0 s and ftl = 0.0 s and ftd = 0.0 s
+         and AXIOM_LTCL() and AXIOM_LTCD() >>
+      illuminate!(false)
+      << INV() >>
+    }
+  
+  --headlight off
+  hl_off : light_off -[on dispatch]-> doff
+    {
+    if  --is this the first time LI < 60%?
+    (ftd = 0.0 s and light_intensity < 60.0 p)~>
+      ftd := now  --first-time-dark is now
+    []  --is LI >= 60%?
+    (light_intensity >= 60.0 p)~>
+      ftd := 0.0 s  --reset first-time-dark
+    []  --still dark?
+    (ftd <> 0.0 s and light_intensity < 60.0 p)~>
+      skip
+    fi  
+    }
+
+  --dark for at least 2 s?  
+  turn_on: doff -[ftd <> 0.0 s and (now-ftd) >= 2.0 s]-> light_on
+    { << INV() and HIO() >>
+      illuminate!(true) & ltcl := now
+    }
+  
+  --not dark for 2 s?
+  keep_off: doff -[ftd = 0.0 s or (now-ftd) < 2.0 s]-> light_off
+    { ltcd := now }
+
+  --headlight on
+  hl_on : light_on -[on dispatch]-> don
+    {
+    if  --is this the first time LI>70%?
+    (ftl = 0.0 s and light_intensity > 70.0 p)~>
+      ftl := now  --first time light is now
+    []  --is LI<70%?
+    (light_intensity <= 70.0 p)~>
+      ftl := 0.0 s  --reset first-time-light
+    []  --still light?
+    (ftl <> 0.0 s and light_intensity > 70.0 p)~>
+      skip
+    fi  
+    }
+
+  --light for at least 3 s?  turn headlight off
+  turn_off: don -[ftl <> 0.0 s and (now-ftl) >= 3.0 s]-> light_off
+    { << INV() and HIO() >>
+      illuminate!(false) & ltcd := now
+    }
+  
+  --not light for 3 s?  keep headlight on
+  keep_on: don -[ftl = 0.0 s or (now-ftl) < 3.0 s]-> light_on
+    { ltcd := now }
+
+
+    
+**};
+end Controller.i;
+
+
+	
+end HeadlightSystem;

@@ -1,0 +1,73 @@
+#This file, script.txt, was produced the BLESS Proof Assistant v3.2.4
+#  at Mon Sep 16 10:43:59 CDT 2024 by brianlarson
+make-an
+#HeadlightSystem::Controller.i
+#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definition. 
+substitute-pre
+normalize
+tautologies
+#[serial 1004] <<M(light_on)>> -> <<I>> from invariant I when complete state light_on has Assertion <<M(light_on)>> in its definition.
+make-an
+#HeadlightSystem::Controller.i
+#[serial 1005] Serban's Theorem:  disjunction of execute conditions leaving execution state don, <<M(don)>> -> <<e1 or e2 or . . . en>> 
+substitute-pre
+substitute-pre
+load
+make-an
+#HeadlightSystem::Controller.i
+#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definition. 
+substitute-pre
+normalize
+tautologies
+#[serial 1004] <<M(light_on)>> -> <<I>> from invariant I when complete state light_on has Assertion <<M(light_on)>> in its definition.
+substitute-pre
+normalize
+tautologies
+#[serial 1005] Serban's Theorem:  disjunction of execute conditions leaving execution state don, <<M(don)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<>
+replace<=
+normalize
+laws
+and-over-or-post
+laws
+normalize
+laws
+tautologies
+#[serial 1006] Serban's Theorem:  disjunction of execute conditions leaving execution state doff, <<M(doff)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<>
+replace<=
+laws
+and-over-or-post
+laws
+normalize
+laws
+normalize
+laws
+tautologies
+#[serial 1007] Serban's Theorem:  disjunction of execute conditions leaving execution state start, <<M(start)>> -> <<e1 or e2 or . . . en>>
+tautologies
+#[serial 1008]  <<M(start)>> A <<M(light_off)>> for go: start-[ ]->light_off{A};
+reduce
+atomic
+remove-axioms-post
+laws
+tautologies
+now
+normalize
+substitute-both
+push
+make-an
+#HeadlightSystem::Controller.i
+#[serial 1066] Substituted assertions' predicates for labels  [serial 1063] 
+DeMorgan
+normalize
+guided-sub-equals[LTCL]
+guided-sub-equals[ltcl]
+guided-sub-equals[LTCD]
+guided-sub-equals[ltcd]
+laws
+normalize
+laws
+tautologies
