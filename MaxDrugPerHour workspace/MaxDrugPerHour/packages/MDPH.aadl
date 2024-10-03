@@ -81,7 +81,7 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
   annex BLESS --state machine
   {**
   assert 
-  <<QML:x~quantity whole returns quantity mlph := INFUSION_RATE^(x) >>
+  <<QML:x~quantity whole returns quantity mlph := INFUSION_RATE^(x) >>  
   -- this body of the BLESS annex subclause is just a suggestion to get you started
   -- look at the SPA.aadl in PO-SA project in github.com/brlarson/BLESS-models
   invariant <<INV: : F() and TD() >>
@@ -104,11 +104,11 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     fillingWindow : complete state
     	<<FW: :((ub-lb) < MDPH_Properties::Samples_Per_Hour) and INV() >>;
     	
---    chooseToRun: state
---    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
---    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
---    	  
---    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
+    chooseToRun: state
+    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
+    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
+    	  
+    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
    
    	run: complete state
    		<<RUN_AV: :INV()  and ((ub-lb)=num_samples)>>;
@@ -123,7 +123,27 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
     
     mdph0a: start -[(ub-lb) >=  MDPH_Properties::Samples_Per_Hour]-> fail
     
-    --mdph1:fillingWindow -[on dispatch]-> chooseToRun
+    mdph1:fillingWindow -[on dispatch]-> chooseToRun
+     {
+     	<< FW() >>
+     	-- store current sample
+     	frs[ub mod MDPH_Properties::Samples_Per_Hour] := INFUSION_RATE
+        << F() >>
+        
+     
+     	&
+     	-- update total drug
+     	total_drug := total_drug + INFUSION_RATE * MDPH_Properties::Service_Thread_Period s
+       << TD()>>
+       
+       &
+       --increment upper bound
+       ub := ub + 1
+       
+       << F() and TD() and CTR() >>
+       
+        
+     }
     	 
     
     
