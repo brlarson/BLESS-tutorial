@@ -1,0 +1,40 @@
+package HAssertion
+public
+
+annex Unit
+{**  
+base [ percentage ] p;
+
+**};
+	
+annex Assertion
+{**
+ghost variables
+ 	def LI ~ quantity p  --light intensity percentage
+ 	def LTCL ~ time  --last time confirmed light
+ 	def LTCD ~ time  --last time confirmed dark
+
+--confirmed light means light intensity has been greater than 70% continually for 3 seconds	
+<<ConfirmedLight: x ~ time : 
+  all t~time in (x - 3.0 s) .. x are (LI@t > 70.0 p)	>>
+  
+--confirmed dark means light intensity has been less than 60% continually for 2 seconds
+<<ConfirmedDark: x ~ time : 
+  all t~time in (x - 2.0 s) .. x are (LI@t < 60.0 p)  >>
+
+--last time (confirmed) light
+<<LTL: : LTCL = 0.0 s or
+   ( ConfirmedLight(LTCL) and (all t ~ time in LTCL ,, now are not ConfirmedLight(t) ) ) >>
+
+--last time (confirmed) dark
+<<LTD: : LTCD = 0.0 s or
+   ( ConfirmedDark(LTCD) and (all t ~ time in LTCD ,, now are not ConfirmedDark(t) ) ) >>
+
+--headlight is ON when the last time confirmed dark is more recent than 
+--the last time confirmed light
+<<HIO: : LTL() and LTD() and LTCL<LTCD >>
+  
+**};	
+	
+	
+end HAssertion;
