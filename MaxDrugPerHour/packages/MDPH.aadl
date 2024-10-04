@@ -1,0 +1,198 @@
+--MDPH.aadl
+
+-- Max Drug Per Hour Watcher tutorial
+
+-- This file contains an AADL package holding an empty thread implementation Max_Drug_Per_Hour_Watcher.i
+-- suitable for student completion and proof
+
+-- The Open PCA Pump AADL model from which this example was taken can be found at:
+-- ssh://git@gitlab.cs.ksu.edu:22022/open-pca-pump/artifact-open-pca-aadl.git
+
+package MDPH
+public
+
+with 
+  BLESS, 
+  BLESS_Types, 
+  MDPH_Properties,
+  Data_Model, Base_Types;
+
+flag renames data BLESS_Types::Boolean;
+
+-- A Unit annex library extends units defined in SI.aadl (in Plug-in Contributions folder)
+-- Here we define a "root" unit for fluid flow rate, made from "base" units from SI.aadl
+-- and then the unit we want, mlph, in terms of its root unit.
+-- A measurement in milliliter per hour (mplh) can be converted to its root unit, cubic meters per second,
+-- (cumps), by dividing by 34000.
+annex Unit
+  {**
+  m m m / s [ fluid flow rate ] < cubic meter per second > cumps, < milliter per hour > mlph / 3.4e4;
+  **};	
+
+-- A Typedef annex library defines name for types.
+-- Every number in BLESS is a quantity having a unit, even if that unit is scalar.
+annex Typedef
+  {**
+  type time is quantity s
+  type flow_rate is quantity mlph  --milliters per hour
+  type flow_rate_samples is array[ MDPH_Properties::Samples_Per_Hour] of flow_rate
+  **};
+
+
+annex Assertion
+  {**
+  ghost variables
+    def INFUSION_RATE~quantity mlph     --actual rate of drug infusion into patient, must be within tolerance of commanded and measured rates
+    def MAX_DRUG_PER_HOUR~quantity ml   --allow maximum drug in the previous hour from physician's prescription'		
+  	def NUM_SAMPLES~quantity whole 
+  
+  --the total drug in previous hour is at (or above) its limit
+  <<PATIENT_AT_MAX_DRUG_PER_HOUR: : TOTAL_DRUG_IN_LAST_HOUR() >= MAX_DRUG_PER_HOUR >>  
+
+  --the total drug in previous hour is at least 95% of its limit
+  <<PATIENT_NEAR_MAX_DRUG_PER_HOUR: : TOTAL_DRUG_IN_LAST_HOUR() >= MAX_DRUG_PER_HOUR * MDPH_Properties::Near_Max_Drug_Per_Hour_Factor>>  --TODO
+
+  -- sum of deleivered infusion rate for each second in previous hour
+  -- note this assumes that the Period of the thread is 1 s, so there are 3600 samples in an hour
+  -- also that INFUSION_RATE has units of mlph; without the magic of BLESS units you would need to convert it to ml/s in your code
+  <<TOTAL_DRUG_IN_LAST_HOUR: returns quantity ml :=  
+    (sum i~quantity whole in 1 .. NUM_SAMPLES of INFUSION_RATE^(-i) * 1.0 s) >>  
+   
+  	
+  **};
+  
+--detects when the maximum drug allowed per hour is reached
+thread Max_Drug_Per_Hour_Watcher
+features
+    Near_Max_Drug_Per_Hour: out event data port flag  --near maximum drug infused in any hour
+      {BLESS::Assertion => "<<PATIENT_NEAR_MAX_DRUG_PER_HOUR()>>";};  
+    at_max_drug_per_hour: out event data port flag  --at maximum drug infused in any hour
+      {BLESS::Assertion => "<<PATIENT_AT_MAX_DRUG_PER_HOUR()>>";};  
+    infusion_flow_rate: in data port Flow_Rate  --rate to pump
+      {BLESS::Value => "<< returns quantity mlph := INFUSION_RATE>>";};
+    max_drug_per_hour: in data port Drug_Volume  --prescribed maximum hourly limit on drug infusion
+      {BLESS::Assertion => "<< returns quantity ml := MAX_DRUG_PER_HOUR>>";};  --maximum drug infused in any hour
+  properties
+    Thread_Properties::Dispatch_Protocol => Hybrid;  --both event and period dispatches
+    Timing_Properties::Period => MDPH_Properties::Service_Thread_Period;  --update outputs every 1s    
+end Max_Drug_Per_Hour_Watcher;
+
+thread implementation Max_Drug_Per_Hour_Watcher.i
+  annex BLESS --state machine
+  {**
+  assert 
+  <<QML:x~quantity whole returns quantity mlph := INFUSION_RATE^(x) >>  
+  -- this body of the BLESS annex subclause is just a suggestion to get you started
+  -- look at the SPA.aadl in PO-SA project in github.com/brlarson/BLESS-models
+  invariant <<INV: : F() and TD() >>
+  variables	
+    lb ~ quantity whole := 0
+    ub ~ quantity whole := 0
+    num_samples~quantity whole := 0  --counts samples while filling
+     <<AXIOM_NS: :num_samples = NUM_SAMPLES>>;
+    frs ~ flow_rate_samples  --holds measurmenets of infusion flow rate
+    <<F: : all k~quantity whole in lb .. (ub - 1) 
+    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))>>;
+           
+    total_drug ~ quantity ml  --running total of drug infused in pervious hour
+      <<TD: : total_drug = TOTAL_DRUG_IN_LAST_HOUR() >> -- total drug in the most recent hour
+ 
+  states
+    start : initial state
+    	<< num_samples=0 and ub=0 and lb=0 and total_drug=0.0 ml and AXIOM_NS() >>
+    
+    fillingWindow : complete state
+    	<<FW: :((ub-lb) < MDPH_Properties::Samples_Per_Hour) and INV() >>;
+    	
+    chooseToRun: state
+    	<<CTR: :(all k~quantity whole in lb .. (ub - 1) 
+    	  are (frs[k mod MDPH_Properties::Samples_Per_Hour] = INFUSION_RATE^(k - ub))) and 
+    	  
+    	  (total_drug=(sum k~quantity whole in lb..(ub - 1) of INFUSION_RATE^(k-ub))* MDPH_Properties::Service_Thread_Period s) >>
+   
+   	run: complete state
+   		<<RUN_AV: :INV()  and ((ub-lb)=num_samples)>>;
+   	
+    halt: final state  -- normal termination
+     
+    fail: final state  --failure termination 
+    
+   transitions
+    mdph0: start -[ (ub-lb) <  MDPH_Properties::Samples_Per_Hour ]-> fillingWindow
+     {|ub',lb',num_samples', frs', total_drug':= ub,lb,num_samples, frs, total_drug|};  --copy current values to next period
+    
+    mdph0a: start -[(ub-lb) >=  MDPH_Properties::Samples_Per_Hour]-> fail
+    
+    mdph1:fillingWindow -[on dispatch]-> chooseToRun
+     {
+     	<< FW() >>
+     	-- store current sample
+     	frs[ub mod MDPH_Properties::Samples_Per_Hour] := INFUSION_RATE
+        << F() >>
+        
+     
+     	&
+     	-- update total drug
+     	total_drug := total_drug + INFUSION_RATE * MDPH_Properties::Service_Thread_Period s
+       << TD()>>
+       
+       &
+       --increment upper bound
+       ub := ub + 1
+       
+       << F() and TD() and CTR() >>
+       
+        
+     }
+    	 
+    
+    
+   -- mdph2: chooseToRun -[(ub-lb) < num_samples]-> fillingWindow
+    
+   -- mdph3: chooseToRun-[(ub-lb) = num_samples]-> run
+    
+   --  mdph3a: chooseToRun -[(ub-lb) > num_samples]-> fail -- should never happen
+     
+   -- mdph4: run-[on dispatch]-> run   
+
+   
+  **};  --end of BLESS state machine
+  
+end Max_Drug_Per_Hour_Watcher.i;
+
+
+process P  -- exists just to hold the thread
+end P;
+
+process implementation P.i
+  subcomponents
+    t : thread Max_Drug_Per_Hour_Watcher.i;
+end P.i;
+
+system S	-- exists just to hold the process
+end S;
+
+--select this (in the outline) to generate BLESS verification conditions
+system implementation S.i
+  subcomponents
+	pr : process P.i;	
+end S.i;
+
+data Flow_Rate  --dose rate
+  properties
+    BLESS::Typed=>"flow_rate";
+    Data_Model::Base_Type => (classifier(Base_Types::Integer_16));
+    Data_Model::Measurement_Unit => "ml/hr";
+end Flow_Rate;  
+
+data Drug_Volume  --volume of vtbi
+  properties
+    BLESS::Typed=>"quantity ml";
+    Data_Model::Base_Type => (classifier(Base_Types::Integer_16));
+    Data_Model::Measurement_Unit => "ml";
+end Drug_Volume;  
+	
+
+	
+	
+end MDPH;
