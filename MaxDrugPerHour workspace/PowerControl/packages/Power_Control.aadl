@@ -1,0 +1,157 @@
+package Power_Control
+public
+    with BLESS, BLESS_Types, Physical_Types, Power_Properties;
+
+flag renames data BLESS_Types::Boolean;
+ 
+system Power 
+  features
+  --power bus
+--    p_bus: requires bus access iPCA_Buses::Power_Bus;
+--    to_safety: refined to feature group iPCA_Feature_Groups::Power_to_Safety_iPCA;
+--    to_operation: refined to feature group iPCA_Feature_Groups::Power_to_Operation_iPCA;
+    low_battery_warning: out event port
+         {BLESS::Assertion=>"<<BATTERY_VOLTAGE < #Power_Properties::Low_Battery_Voltage>>";};
+      --5.1(5) The PCA pump shall detect battery failure.
+      --5.1(6) If the battery fails, the pump shall issue a defective-battery alarm.
+    defective_btty: out event port
+         {BLESS::Assertion=>"<<BATTERY_VOLTAGE < #Power_Properties::Defective_Battery_Voltage>>";};
+    voltage_oor: out event port;   --power supply voltage is out of range
+      --5.1(2) The user interface must show that the PCA pump is working on battery backup, 
+      --and an estimate of the number of minutes of battery-powered infusion remain.
+    Using_Battery_Power: out data port flag
+      {BLESS::Assertion=>"<<BATTERY_CURRENT>0>>";};
+      --remaining battery time estimated by assuming linear voltage decline with stored energy
+    Remaining_Battery_Time: out data port BLESS_Types::Time
+      {BLESS::Assertion=>"<<:=REMAINING_BATTERY_TIME>>";};
+		properties
+			Classifier_Substitution_Rule => Type_Extension;
+end Power;
+
+system implementation Power.i 
+  subcomponents
+    pwr: device Power_Control.i;      --battery control
+    btty: device Battery.i;             --the physical battery
+    vcc: device Power_Supply.i;
+  connections
+  --warnings
+    dba: port pwr.Defective_Battery -> defective_btty;
+    lbw_as: port pwr.low_battery_warning -> low_battery_warning;  
+    lbw_o: port pwr.low_battery_warning -> low_battery_warning;  
+    rbt: port pwr.Remaining_Battery_Time -> Remaining_Battery_Time;  
+    ubp: port pwr.Using_Battery_Power -> Using_Battery_Power; 
+    vor: port pwr.voltage_oor -> voltage_oor;
+    --measure battery 
+    bv: port btty.Battery_Voltage->pwr.Battery_Voltage;
+    bc: port btty.Battery_Current->pwr.Battery_Current;
+    --measure power supply
+    psv: port vcc.Power_Voltage->pwr.Power_Voltage; 
+ end Power.i;
+     
+--this represents the physical battery, it has voltage and current outputs that really are measured by
+--Power_Control, but they need to be modeled as coming from somewhere
+--R6.3.0(1) battery backup
+--Battery is subsection 9.2.1
+device Battery
+  features
+    Battery_Voltage : out data port Physical_Types::Voltage
+      {BLESS::Value=>"<< returns quantity V := BATTERY_VOLTAGE>>";};  --actual battery voltage, measured by Power_Control
+    Battery_Current : out data port Physical_Types::Current
+      {BLESS::Value=>"<< returns quantity A := BATTERY_CURRENT>>";};   --actual battery current, measured by Power_Control
+end Battery;
+
+device implementation Battery.i
+end Battery.i;
+
+--Power_Control represents the battery control logic
+--remaining battery time estimated by assuming linear voltage delcine with stored energy
+--this is, of course, wrong; Li-ion batteries hold flat output voltage until near end-of-life
+--but the point here is not to create sophisticated battery algorithms, but use them in safety decisions
+-- section 9.2.2
+--R5.4.1(3) power and battery failure 
+--R6.3.0(2) remaining battery minutes 
+--R6.3.0(3) remaining battery accuracy 
+--R6.3.0(4) low-battery warning 
+--R6.3.0(5) battery failure alarm
+--R6.3.0(6): voltage out-of-range warning
+device Power_Control
+  features
+    --the battery control is expected to measure battery voltage and current
+    --these are modeled as if the values come from the physical battery
+    Battery_Voltage : in data port Physical_Types::Voltage
+        {BLESS::Value=>"<< returns quantity V := BATTERY_VOLTAGE>>";};  --actual battery voltage, 
+    Battery_Current : in data port Physical_Types::Current
+        {BLESS::Value=>"<< returns quantity A := BATTERY_CURRENT>>";};   --actual battery current
+      --R6.3.0(2)  If the estimated battery life remaining is less than DELTAlba = 3 minutes, the pump shall issue a low-battery warning.
+    low_battery_warning: out event port
+         {BLESS::Assertion=>"<< LOW_BATTERY() >>";};
+      --R6.3.0(5) battery failure alarm: The PCA pump shall detect battery failure and issue a battery failure alarm.
+    Defective_Battery: out event port
+         {BLESS::Assertion=>"<< BTTY_FAIL() >>";};
+      --R6.3.0(6) voltage out-of-range warning
+    voltage_oor: out event port   --power supply voltage is out of range
+         {BLESS::Assertion=>"<< VOLTAGE_OOR() >>";};
+    Power_Voltage : in data port Physical_Types::Voltage  --measure power supply voltage
+           {BLESS::Value=>"<< returns quantity V := POWER_VOLTAGE>>";};
+      --R6.3.0(2) remaining battery minutes The user interface must show that the PCA pump is working on battery backup, 
+      --and an estimate of the number of minutes of battery-powered infusion remain.
+    Using_Battery_Power: out data port BLESS_Types::Boolean
+      {BLESS::Assertion=>"<<BATTERY_CURRENT>0>>";};
+      --remaining battery time is a complex, implementation-dependent calculation
+    Remaining_Battery_Time: out data port BLESS_Types::Time
+      {BLESS::Assertion=>"<< returns quantity min := REMAINING_BATTERY_TIME>>";};
+  properties
+    Timing_Properties::Period=>Power_Properties::Battery_Measurement_Period;
+end Power_Control;
+
+device implementation Power_Control.i  
+  annex BLESS
+  {**
+--  	assert
+--  	  <<AXIOM_RBT: : 
+--  	    remaining_btty_time=REMAINING_BATTERY_TIME>>
+  invariant <<true>>
+  variables remaining_btty_time ~ time; --stand-in for implementation dependent calculation
+    
+  states
+    start : initial state;
+    run : complete state;
+    done : final state;  --never used
+  transitions
+    bbc0: start-[ ]->run {}; --{filtered_voltage:=Battery_Voltage?};
+    bbc1: run-[on dispatch]->run
+    {  --determine all warnings concurrently
+    if (Battery_Voltage? < #Power_Properties::Defective_Battery_Voltage V)~> Defective_Battery!
+    [] (Battery_Voltage? >= #Power_Properties::Defective_Battery_Voltage V)~> skip
+    fi
+    &
+    if (Battery_Voltage? < #Power_Properties::Low_Battery_Voltage V)~> low_battery_warning!
+    [] (Battery_Voltage? >= #Power_Properties::Low_Battery_Voltage V)~> skip
+    fi
+    &
+    if ((Power_Voltage? < #Power_Properties::Minimum_Power_Voltage V) or 
+           (Power_Voltage? > #Power_Properties::Maximum_Power_Voltage V))~> voltage_oor!
+    [] ((Power_Voltage? >= #Power_Properties::Minimum_Power_Voltage V) and 
+           (Power_Voltage? <= #Power_Properties::Maximum_Power_Voltage V))~> skip
+    fi
+    &
+     if (Battery_Current? > 0.0 uA)~> Using_Battery_Power!(true)
+    [] (Battery_Current? <= 0.0 uA)~> Using_Battery_Power!(false)
+    fi
+    &
+--    <<AXIOM_RBT()>>  --fudge calculation of remaining battery time
+    Remaining_Battery_Time!(remaining_btty_time)
+    };
+**};
+end Power_Control.i;  
+
+device Power_Supply
+  features
+    power_voltage : out data port Physical_Types::Voltage  --monitor power supply voltage
+           {BLESS::Value=>"<< returns quantity V := POWER_VOLTAGE>>";};
+end Power_Supply;
+  
+device implementation Power_Supply.i
+end Power_Supply.i; 
+    	
+end Power_Control;

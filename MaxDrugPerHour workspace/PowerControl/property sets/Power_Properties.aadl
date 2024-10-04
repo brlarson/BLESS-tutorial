@@ -1,0 +1,26 @@
+--Power_Properties.aadl
+property set Power_Properties is
+	with Power_Control, Physical_Properties;
+
+	-- applies to (iPCA_Types::Fault_Log);
+	--6.3 Power Supply
+	Battery_Measurement_Period: --Timing_Properties::
+	Time => 1 min applies to (Power_Control::power_control);
+	--R6.3.0(1) The PCA pump shall continue to infuse for 10 minutes during interruption of 
+	--  mains electricity supply, either continuously or spread over an hour.
+	Battery_Power_Duration: --Timing_Properties::
+	Time => 10 min applies to (Power_Control::power_control);
+	--fully-charged battery voltage chosen arbitrarily
+	Full_Battery_Voltage: Physical_Properties::Voltage => 5V applies to (Power_Control::power_control);
+	--R6.3.0(4) If the estimated battery life remaining is less than ∆lba = 3 minutes, 
+	--  the pump shall issue a low-battery warning.
+	--  (3 min/10 min) * 5V = 1.5V or 1500 mV
+	Low_Battery_Voltage: Physical_Properties::Voltage => 1500mV applies to (Power_Control::power_control);
+	--R6.3.0(5) battery failure alarm
+	Defective_Battery_Voltage: Physical_Properties::Voltage => 500mV applies to (Power_Control::power_control);
+	--R6.3.0(6) voltage out-of-range warning
+	Maximum_Power_Voltage: Physical_Properties::Voltage => 6V applies to (Power_Control::power_control);
+	Minimum_Power_Voltage: Physical_Properties::Voltage => 4V applies to (Power_Control::power_control);
+
+		
+end iPCA_Properties;
