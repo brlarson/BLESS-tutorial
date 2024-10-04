@@ -86,8 +86,8 @@ thread implementation Max_Drug_Per_Hour_Watcher.i
   -- look at the SPA.aadl in PO-SA project in github.com/brlarson/BLESS-models
   invariant <<INV: : F() and TD() >>
   variables	
-    lb ~ quantity whole := 0
-    ub ~ quantity whole := 0
+    lb ~ quantity whole := 0 -- lower bound
+    ub ~ quantity whole := 0 -- upper bound
     num_samples~quantity whole := 0  --counts samples while filling
      <<AXIOM_NS: :num_samples = NUM_SAMPLES>>;
     frs ~ flow_rate_samples  --holds measurmenets of infusion flow rate

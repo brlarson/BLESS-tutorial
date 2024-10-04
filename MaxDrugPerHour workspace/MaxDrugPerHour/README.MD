@@ -1,4 +1,7 @@
 READ ME File -- update accordingly 
+Watch BLESS What is BLESS
+Download BLESS book from ......provide a link
+
 This project presents a clinical use case involving automated monitoring of the patient-controlled opioid infusion after a surgical procedure.
 It demonstrates how the trusted composition of Internet of Medical Things (IoMT) may be achieved across an imperfect network.
 It also shows how a system level safety property, specified as an invariant, can be deduced from invariants of the highly assured and less assured sub-components 
