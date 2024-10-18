@@ -1,32 +1,41 @@
-#This file, script.txt, was produced the BLESS Proof Assistant v3.2.4
-#  at Sat Oct 05 00:55:20 AST 2024 by ehsanahmad
-#  You chose proof script: /Users/ehsanahmad/git/BLESS-tutorial/Headlight/proof scripts/his.ps
+#This file, script.txt, was produced the BLESS Proof Assistant v3.2.5
+#  at Fri Oct 18 14:15:11 CDT 2024 by brianlarson
+#  You chose proof script: /Users/brianlarson/git3/BLESS-tutorial/Headlight/proof scripts/his.ps
 #HeadlightSystem::Controller.i
-#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definitio
+#[serial 1003] <<M(some_light)>> -> <<I>> from invariant I when complete state some_light has Assertion <<M(some_light)>> in its definitio
 make-an
-substitute-pre
-normalize
 tautologies
-#[serial 1004] <<M(light_on)>> -> <<I>> from invariant I when complete state light_on has Assertion <<M(light_on)>> in its definition.
-substitute-pre
-normalize
+#[serial 1004] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definition.
 tautologies
-#[serial 1005] Serban's Theorem:  disjunction of execute conditions leaving execution state don, <<M(don)>> -> <<e1 or e2 or . . . en>>
+#[serial 1005] <<M(light_on)>> -> <<I>> from invariant I when complete state light_on has Assertion <<M(light_on)>> in its definition.
+tautologies
+#[serial 1006] <<M(some_dark)>> -> <<I>> from invariant I when complete state some_dark has Assertion <<M(some_dark)>> in its definition.
+tautologies
+#[serial 1007] Serban's Theorem:  disjunction of execute conditions leaving execution state don, <<M(don)>> -> <<e1 or e2 or . . . en>>
 normalize
-replace<>
 replace<=
-normalize
 laws
+tautologies
+#[serial 1008] Serban's Theorem:  disjunction of execute conditions leaving execution state doff, <<M(doff)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<=
+laws
+tautologies
+#[serial 1009] Serban's Theorem:  disjunction of execute conditions leaving execution state dsd, <<M(dsd)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<=
 and-over-or-post
 laws
 normalize
 laws
-tautologies
-#[serial 1006] Serban's Theorem:  disjunction of execute conditions leaving execution state doff, <<M(doff)>> -> <<e1 or e2 or . . . en>>
 normalize
-replace<>
-replace<=
 laws
+tautologies
+#[serial 1010] Serban's Theorem:  disjunction of execute conditions leaving execution state start, <<M(start)>> -> <<e1 or e2 or . . . en>>
+tautologies
+#[serial 1011] Serban's Theorem:  disjunction of execute conditions leaving execution state dsl, <<M(dsl)>> -> <<e1 or e2 or . . . en>>
+normalize
+replace<=
 and-over-or-post
 laws
 normalize
@@ -34,54 +43,110 @@ laws
 normalize
 laws
 tautologies
-#[serial 1007] Serban's Theorem:  disjunction of execute conditions leaving execution state start, <<M(start)>> -> <<e1 or e2 or . . . en>>
-tautologies
-#[serial 1008]  <<M(start)>> A <<M(light_off)>> for go: start-[ ]->light_off{A};
+#[serial 1012]  <<M(start)>> A <<M(light_off)>> for go: start-[ ]->light_off{A};
 reduce
-atomic
 remove-axioms-post
 laws
 tautologies
-now
-normalize
+atomic
+tautologies
 substitute-both
-push
-make-an
-#HeadlightSystem::Controller.i
-#[serial 1065] Substituted assertions' predicates for labels  [serial 1062] 
+normalize
 guided-sub-equals[LTCL]
+guided-sub-equals[ltcl]
 guided-sub-equals[LTCD]
 guided-sub-equals[ltcd]
-guided-sub-equals[LTCD]
-guided-sub-equals[ltcl]
-guided-sub-equals[LTCL]
-sub-equals
-sub-equals
 laws
 normalize
 tautologies
-#[serial 1066] Substituted assertions' predicates for labels  [serial 1064]
-normalize
+#[serial 1013]  <<M(light_off) and x>> -> <<M(doff)>> for hl_off: light_off-[x]->doff{};
+tautologies
+#[serial 1014]  <<M(doff) and x>> -> <<M(light_off)>> for stay_off: doff-[x]->light_off{};
+tautologies
+#[serial 1015]  <<M(doff) and x>> A <<M(some_dark)>> for starting_dark: doff-[x]->some_dark{A};
 substitute-post
-guided-sub-equals[ftd]
+atomic
+quant
+replace-port-value
+now
+normalize
+tautologies
+#[serial 1016]  <<M(some_dark) and x>> -> <<M(dsd)>> for sd: some_dark-[x]->dsd{};
+tautologies
+#[serial 1017]  <<M(dsd) and x>> -> <<M(some_dark)>> for stay_dark: dsd-[x]->some_dark{};
+tautologies
+#[serial 1018]  <<M(dsd) and x>> -> <<M(light_off)>> for not_dark: dsd-[x]->light_off{};
+tautologies
+#[serial 1019]  <<M(dsd) and x>> -> <<M(err)>> for fail1: dsd-[x]->err{};
+tautologies
+#[serial 1020]  <<M(dsd) and x>> A <<M(light_on)>> for turn_on: dsd-[x]->light_on{A};
+reduce
+remove-axioms-post
+atomic
+tautologies
 laws
-laws
+substitute-post
+substitute-pre
 normalize
 laws
+guided-sub-equals[2.0 s]
+elim-subtract
+normalize
+laws
+normalize
+tautologies
 guided-sub-equals[LTCD]
-sub-equals
-laws
-laws
-normalize
-laws
-guided-sub-equals[ftl]
-laws
-laws
-normalize
-laws
-guided-sub-equals[LTCL]
-sub-equals
-laws
+guided-sub-equals[ltcd]
+guided-sub-equals[ltcl]
 laws
 tautologies
-#[serial 1009]  <<M(light_off) and x>> A <<M(doff)>> for hl_off: light_off-[x]->doff{A};
+#[serial 1021]  <<M(light_on) and x>> -> <<M(don)>> for hl_on: light_on-[x]->don{};
+tautologies
+#[serial 1022]  <<M(don) and x>> -> <<M(light_on)>> for stay_on: don-[x]->light_on{};
+tautologies
+#[serial 1023]  <<M(don) and x>> A <<M(some_light)>> for starting_light: don-[x]->some_light{A};
+substitute-post
+atomic
+quant
+normalize
+replace-port-value
+now
+tautologies
+#[serial 1024]  <<M(some_light) and x>> -> <<M(dsl)>> for sl: some_light-[x]->dsl{};
+tautologies
+#[serial 1025]  <<M(dsl) and x>> -> <<M(some_light)>> for stay_light: dsl-[x]->some_light{};
+tautologies
+#[serial 1026]  <<M(dsl) and x>> -> <<M(light_on)>> for not_light: dsl-[x]->light_on{};
+tautologies
+#[serial 1027]  <<M(dsl) and x>> -> <<M(err)>> for fail2: dsl-[x]->err{};
+tautologies
+#[serial 1028]  <<M(dsl) and x>> A <<M(light_off)>> for turn_off: dsl-[x]->light_off{A};
+reduce
+remove-axioms-post
+laws
+normalize
+atomic
+tautologies
+substitute-both
+laws
+normalize
+guided-sub-equals[3.0 s]
+normalize
+tautologies
+guided-sub-equals[LTCD]
+guided-sub-equals[LTCL]
+laws
+tautologies
+#[serial 1029] Composition of Subcomponents via Directional Connection ls.light_intensity -> cp.c.light_intensity:
+tautologies
+#[serial 1030] Composition of Subcomponents via Directional Connection cp.c.illuminate -> hl.illuminate:
+tautologies
+#[serial 1031] Composition of Subcomponents via Directional Connection HeadlightSystem::hls.i.ill:
+tautologies
+#[serial 1032] Composition of Subcomponents via Directional Connection HeadlightSystem::hls.i.int:
+tautologies
+#[serial 1033] Composition of Subcomponents via Directional Connection HeadlightSystem::ControllerProcess.i.int:
+tautologies
+#[serial 1034] Composition of Subcomponents via Directional Connection HeadlightSystem::ControllerProcess.i.ill:
+tautologies
+#Q.E.D.

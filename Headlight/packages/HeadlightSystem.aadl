@@ -62,100 +62,83 @@ end Controller;
 thread implementation Controller.i
 annex BLESS
 {**
-invariant <<INV: : LTL() and LTD()  and FL() and FD() >>
+invariant << true >>
   
 variables
   ltcl ~ time := 0.0 s  --last time confirmed light
-    << AXIOM_LTCL: : ltcl = LTCL >>
+    << GIVEN_LTCL: : ltcl = LTCL >>
      
   ltcd ~ time := 0.0 s  --last time confirmed dark
-    << AXIOM_LTCD: : ltcd = LTCD >>
+    << GIVEN_LTCD: : ltcd = LTCD >>
  
  -- we need ltcl and ltcd as these are moving points in time while 
  -- ftl and ftd are not required as headlight is off by default and LTCL = 0.0 in LTL and LTD are enough
   
   ftl ~ time := 0.0 s  --first time (continuous) light
-    <<FL: : ftl = 0.0 s or ConfirmedLight(ftl) >> -- different predicate here all t~time (ftl..now) LI@t > 70.0 p
-  
+    <<FL: : all t ~ time in ftl .. now are (LI@t > 70.0 p) >> 
+
   ftd ~ time := 0.0 s  --first time (continuous) dark
-    <<FD: : ftd = 0.0 s or ConfirmedDark(ftd) >>
+    <<FD: : all t ~ time in ftd .. now are LI@t < 60.0 p >>
   
 states
   start : initial state
-     << ltcl = 0.0 s and ltcd = 0.0 s  and ftl = 0.0 s and ftd = 0.0 s >> 
-  light_off : complete state 
-     << INV() >> 
-  doff : state  --decide when off
-     << INV() >>
-  light_on : complete state
-     << INV() >> 
+     << ltcl = 0.0 s and ltcd = 0.0 s  and ftl = 0.0 s and ftd = 0.0 s >>
+  light_off : complete state  --headlight is off
+  doff : state  --decide when light is off
+  some_dark : complete state --dark for a while, but not long enough to turn on
+    << FD() >>
+  dsd : state  --decide when some dark
+    << FD() >>
+  light_on : complete state  --headlight is on
   don : state  --decide when on
-     << INV() >>
+  some_light : complete state --light for a while, but not long enough to turn off
+    << FL() >>
+  dsl : state  --decide when some light
+    << FL() >>
+  err : final state  --something went wrong (needed for Serban's theorems)
   done : final state
   
 transitions
   go : start -[ ]-> light_off 
-    { << ltcl = 0.0 s and ltcd = 0.0 s  and ftl = 0.0 s and ftd = 0.0 s
-         and AXIOM_LTCL() and AXIOM_LTCD() >>
+    { << ltcl = 0.0 s and ltcd = 0.0 s and GIVEN_LTCL() and GIVEN_LTCD() >>
       illuminate!(false)
-      << INV() >>
     }
   
   --headlight off
   hl_off : light_off -[on dispatch]-> doff
-    {
-    if  --is this the first time LI < 60%?
-    (ftd = 0.0 s and light_intensity < 60.0 p)~>
-      ftd := now  --first-time-dark is now
-      << INV() and ftd=now >>	
-    []  --is LI >= 60%?
-    (light_intensity >= 60.0 p)~>
-      ftd := 0.0 s  --reset first-time-dark,
-     << INV() and ftd=0.0 s >>	
-    []  --still dark?
-    (ftd <> 0.0 s and light_intensity < 60.0 p)~>
-      skip
-      << INV() >>	
-    fi  
-    }
-
-  --dark for at least 2 s?  
-  turn_on: doff -[ftd <> 0.0 s and (now-ftd) >= 2.0 s]-> light_on
-    { << INV() and HIO() >>
-      illuminate!(true) & ltcd := now
+  stay_off : doff -[light_intensity >= 60.0 p]-> light_off
+  starting_dark : doff -[light_intensity < 60.0 p]-> some_dark
+    { ftd := now }
+  
+  --dark for a while, but not long enough to turn on
+  sd : some_dark -[on dispatch]-> dsd
+  stay_dark : dsd -[light_intensity < 60.0 p and now-ftd < 2.0 s ]-> some_dark
+  not_dark : dsd -[light_intensity >= 60.0 p ]-> light_off
+  fail1 : dsd -[now-ftd > 2.0 s]-> err  --should never occur
+  turn_on : dsd -[light_intensity < 60.0 p and now-ftd = 2.0 s ]-> light_on
+    { 
+      ltcd := now
+      ; << ConfirmedDark(ltcd) and GIVEN_LTCL() and GIVEN_LTCD() >>
+      illuminate!(ltcl > ltcd)
     }
   
-  --not dark for 2 s?
-  keep_off: doff -[ftd = 0.0 s or (now-ftd) < 2.0 s]-> light_off
-    { ltcd := now }
-
-  --headlight on
   hl_on : light_on -[on dispatch]-> don
-    {
-    if  --is this the first time LI>70%?
-    (ftl = 0.0 s and light_intensity > 70.0 p)~>
-      ftl := now  --first time light is now
-    []  --is LI<70%?
-    (light_intensity <= 70.0 p)~>
-      ftl := 0.0 s  --reset first-time-light
-    []  --still light?
-    (ftl <> 0.0 s and light_intensity > 70.0 p)~>
-      skip
-    fi  
+  stay_on : don -[light_intensity <= 70.0 p]-> light_on
+  starting_light : don -[light_intensity > 70.0 p]-> some_light
+    { ftl := now }
+
+  --light for a while, but not long enough to turn off
+  sl : some_light -[on dispatch]-> dsl
+  stay_light : dsl -[light_intensity > 70.0 p and now-ftl < 3.0 s ]-> some_light
+  not_light : dsl -[light_intensity <= 70.0 p ]-> light_on
+  fail2 : dsl -[now-ftl > 3.0 s]-> err  --should never occur
+  turn_off : dsl -[light_intensity > 70.0 p and now-ftl = 3.0 s ]-> light_off
+    { 
+      ltcl := now
+      ; << ConfirmedLight(ltcl) and GIVEN_LTCL() and GIVEN_LTCD() >>
+      illuminate!(ltcl > ltcd)
     }
-
-  --light for at least 3 s?  turn headlight off
-  turn_off: don -[ftl <> 0.0 s and (now-ftl) >= 3.0 s]-> light_off
-    { << INV() and not HIO() >>
-      illuminate!(false) & ltcd := now
-    }
-  
-  --not light for 3 s?  keep headlight on
-  keep_on: don -[ftl = 0.0 s or (now-ftl) < 3.0 s]-> light_on
-     {ltcl := now} --  { ltcd := now } 
-
-
-    
+     
 **};
 end Controller.i;
 

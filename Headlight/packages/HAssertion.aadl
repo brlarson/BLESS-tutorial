@@ -23,16 +23,14 @@ ghost variables
   all t~time in (x - 2.0 s) .. x are (LI@t < 60.0 p)  >>
 
 --last time (confirmed) light
-<<LTL: : LTCL = 0.0 s or
-   ( ConfirmedLight(LTCL) and (all t ~ time in LTCL ,, now are not ConfirmedLight(t) ) ) >>
+<<LTL: : ConfirmedLight(LTCL)  >>
 
 --last time (confirmed) dark
-<<LTD: : LTCD = 0.0 s or
-   ( ConfirmedDark(LTCD) and (all t ~ time in LTCD ,, now are not ConfirmedDark(t) ) ) >>
+<<LTD: : ConfirmedDark(LTCD) >>
 
 --headlight is ON when the last time confirmed dark is more recent than 
 --the last time confirmed light
-<<HIO: : LTCL<LTCD >>
+<<HIO: : LTCL>LTCD >>
 
   
 **};	
