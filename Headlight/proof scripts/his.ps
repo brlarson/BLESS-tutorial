@@ -1,21 +1,9 @@
 #This file, script.txt, was produced the BLESS Proof Assistant v3.2.4
-#  at Mon Sep 16 10:43:59 CDT 2024 by brianlarson
-make-an
+#  at Sat Oct 05 00:55:20 AST 2024 by ehsanahmad
+#  You chose proof script: /Users/ehsanahmad/git/BLESS-tutorial/Headlight/proof scripts/his.ps
 #HeadlightSystem::Controller.i
-#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definition. 
-substitute-pre
-normalize
-tautologies
-#[serial 1004] <<M(light_on)>> -> <<I>> from invariant I when complete state light_on has Assertion <<M(light_on)>> in its definition.
+#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definitio
 make-an
-#HeadlightSystem::Controller.i
-#[serial 1005] Serban's Theorem:  disjunction of execute conditions leaving execution state don, <<M(don)>> -> <<e1 or e2 or . . . en>> 
-substitute-pre
-substitute-pre
-load
-make-an
-#HeadlightSystem::Controller.i
-#[serial 1003] <<M(light_off)>> -> <<I>> from invariant I when complete state light_off has Assertion <<M(light_off)>> in its definition. 
 substitute-pre
 normalize
 tautologies
@@ -60,14 +48,40 @@ substitute-both
 push
 make-an
 #HeadlightSystem::Controller.i
-#[serial 1066] Substituted assertions' predicates for labels  [serial 1063] 
-DeMorgan
-normalize
+#[serial 1065] Substituted assertions' predicates for labels  [serial 1062] 
 guided-sub-equals[LTCL]
-guided-sub-equals[ltcl]
 guided-sub-equals[LTCD]
 guided-sub-equals[ltcd]
+guided-sub-equals[LTCD]
+guided-sub-equals[ltcl]
+guided-sub-equals[LTCL]
+sub-equals
+sub-equals
+laws
+normalize
+tautologies
+#[serial 1066] Substituted assertions' predicates for labels  [serial 1064]
+normalize
+substitute-post
+guided-sub-equals[ftd]
+laws
 laws
 normalize
 laws
+guided-sub-equals[LTCD]
+sub-equals
+laws
+laws
+normalize
+laws
+guided-sub-equals[ftl]
+laws
+laws
+normalize
+laws
+guided-sub-equals[LTCL]
+sub-equals
+laws
+laws
 tautologies
+#[serial 1009]  <<M(light_off) and x>> A <<M(doff)>> for hl_off: light_off-[x]->doff{A};

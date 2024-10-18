@@ -24,7 +24,7 @@ end Headlight;
 device LightSensor
 features
   light_intensity : out data port Percent
-   {BLESS::Value => "<< returns quantity p := LI >>";};  --light intensity
+   {BLESS::Value => "<< returns quantity p := LI >>";};  --light intensity := is not assignment 
 end LightSensor;
 
 data Percent
@@ -55,14 +55,14 @@ features
   illuminate : out data port BLESS_Types::Boolean
     {BLESS::Assertion => "<< HIO() >>";};  --headlight is on
 properties
-  Dispatch_Protocol => Timed;
+  Dispatch_Protocol => Timed; --
   Period => 100 ms;
 end Controller;
 
 thread implementation Controller.i
 annex BLESS
 {**
-invariant <<INV: : LTL() and LTD() and FL() and FD() >>
+invariant <<INV: : LTL() and LTD()  and FL() and FD() >>
   
 variables
   ltcl ~ time := 0.0 s  --last time confirmed light
@@ -70,16 +70,19 @@ variables
      
   ltcd ~ time := 0.0 s  --last time confirmed dark
     << AXIOM_LTCD: : ltcd = LTCD >>
-    
+ 
+ -- we need ltcl and ltcd as these are moving points in time while 
+ -- ftl and ftd are not required as headlight is off by default and LTCL = 0.0 in LTL and LTD are enough
+  
   ftl ~ time := 0.0 s  --first time (continuous) light
-    <<FL: : ftl = 0.0 s or ConfirmedLight(ftl) >>
+    <<FL: : ftl = 0.0 s or ConfirmedLight(ftl) >> -- different predicate here all t~time (ftl..now) LI@t > 70.0 p
   
   ftd ~ time := 0.0 s  --first time (continuous) dark
     <<FD: : ftd = 0.0 s or ConfirmedDark(ftd) >>
   
 states
   start : initial state
-     << ltcl = 0.0 s and ltcd = 0.0 s and ftl = 0.0 s and ftd = 0.0 s >>     
+     << ltcl = 0.0 s and ltcd = 0.0 s  and ftl = 0.0 s and ftd = 0.0 s >> 
   light_off : complete state 
      << INV() >> 
   doff : state  --decide when off
@@ -92,7 +95,7 @@ states
   
 transitions
   go : start -[ ]-> light_off 
-    { << ltcl = 0.0 s and ltcd = 0.0 s and ftl = 0.0 s and ftd = 0.0 s
+    { << ltcl = 0.0 s and ltcd = 0.0 s  and ftl = 0.0 s and ftd = 0.0 s
          and AXIOM_LTCL() and AXIOM_LTCD() >>
       illuminate!(false)
       << INV() >>
@@ -104,19 +107,22 @@ transitions
     if  --is this the first time LI < 60%?
     (ftd = 0.0 s and light_intensity < 60.0 p)~>
       ftd := now  --first-time-dark is now
+      << INV() and ftd=now >>	
     []  --is LI >= 60%?
     (light_intensity >= 60.0 p)~>
-      ftd := 0.0 s  --reset first-time-dark
+      ftd := 0.0 s  --reset first-time-dark,
+     << INV() and ftd=0.0 s >>	
     []  --still dark?
     (ftd <> 0.0 s and light_intensity < 60.0 p)~>
       skip
+      << INV() >>	
     fi  
     }
 
   --dark for at least 2 s?  
   turn_on: doff -[ftd <> 0.0 s and (now-ftd) >= 2.0 s]-> light_on
     { << INV() and HIO() >>
-      illuminate!(true) & ltcl := now
+      illuminate!(true) & ltcd := now
     }
   
   --not dark for 2 s?
@@ -140,13 +146,13 @@ transitions
 
   --light for at least 3 s?  turn headlight off
   turn_off: don -[ftl <> 0.0 s and (now-ftl) >= 3.0 s]-> light_off
-    { << INV() and HIO() >>
+    { << INV() and not HIO() >>
       illuminate!(false) & ltcd := now
     }
   
   --not light for 3 s?  keep headlight on
   keep_on: don -[ftl = 0.0 s or (now-ftl) < 3.0 s]-> light_on
-    { ltcd := now }
+     {ltcl := now} --  { ltcd := now } 
 
 
     

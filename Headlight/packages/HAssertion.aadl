@@ -3,7 +3,7 @@ public
 
 annex Unit
 {**  
-base [ percentage ] p;
+base [ percentage ] p; --base unit
 
 **};
 	
@@ -32,7 +32,8 @@ ghost variables
 
 --headlight is ON when the last time confirmed dark is more recent than 
 --the last time confirmed light
-<<HIO: : LTL() and LTD() and LTCL<LTCD >>
+<<HIO: : LTCL<LTCD >>
+
   
 **};	
 	
